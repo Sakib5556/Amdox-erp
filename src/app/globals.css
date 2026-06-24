@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f5f6f8; /* Sypher clean light gray background */
+  --foreground: #09090b; /* Zinc 950 text */
+  
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  
+  --primary: #18181b; /* Zinc 900 - stark dark charcoal accent */
+  --primary-foreground: #ffffff;
+  
+  --secondary: #27272a; /* Zinc 800 */
+  --secondary-foreground: #ffffff;
+  
+  --muted: #f4f4f5; /* Zinc 100 */
+  --muted-foreground: #71717a; /* Zinc 600 */
+  
+  --border: #e4e4e7; /* Zinc 200 borders */
+  --input: #f4f4f5;
+  
+  --success: #00c853; /* Vibrant Green */
+  --warning: #ffd600; /* Vibrant Yellow */
+  --danger: #ff4081; /* Vibrant Rose/Pink */
+
+  /* Grayscale palette variables (Light Mode) */
+  --primary-50: #fafafa;
+  --primary-100: #f4f4f5;
+  --primary-200: #e4e4e7;
+  --primary-300: #d4d4d8;
+  --primary-400: #a1a1aa;
+  --primary-500: #18181b;
+  --primary-600: #27272a;
+  --primary-700: #3f3f46;
+  --primary-800: #52525b;
+  --primary-900: #71717a;
+  --primary-950: #09090b;
+}
+
+.dark {
+  --background: #09090b; /* Zinc 950 deep space background */
+  --foreground: #fafafa;
+  
+  --card: #18181b; /* Zinc 900 card background */
+  --card-foreground: #fafafa;
+  
+  --primary: #fafafa; /* Zinc 50 - clean white accent for dark mode */
+  --primary-foreground: #18181b;
+  
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  
+  --border: #27272a;
+  --input: #27272a;
+  
+  --success: #00e676; /* Vibrant Green */
+  --warning: #ffea00; /* Vibrant Yellow */
+  --danger: #ff4081; /* Vibrant Rose/Pink */
+
+  /* Grayscale palette variables (Dark Mode) */
+  --primary-50: #09090b;
+  --primary-100: #18181b;
+  --primary-200: #27272a;
+  --primary-300: #3f3f46;
+  --primary-400: #52525b;
+  --primary-500: #fafafa;
+  --primary-600: #f4f4f5;
+  --primary-700: #e4e4e7;
+  --primary-800: #d4d4d8;
+  --primary-900: #a1a1aa;
+  --primary-950: #ffffff;
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary-brand: var(--primary);
+  --color-primary-brand-foreground: var(--primary-foreground);
+  --color-border-brand: var(--border);
+  --color-muted-brand: var(--muted);
+  --color-muted-brand-foreground: var(--muted-foreground);
+  --color-success-brand: var(--success);
+  --color-warning-brand: var(--warning);
+  --color-danger-brand: var(--danger);
+
+  /* Override Blue classes */
+  --color-blue-50: var(--primary-50);
+  --color-blue-100: var(--primary-100);
+  --color-blue-200: var(--primary-200);
+  --color-blue-300: var(--primary-300);
+  --color-blue-400: var(--primary-400);
+  --color-blue-500: var(--primary-500);
+  --color-blue-600: var(--primary-600);
+  --color-blue-700: var(--primary-700);
+  --color-blue-800: var(--primary-800);
+  --color-blue-900: var(--primary-900);
+  --color-blue-950: var(--primary-950);
+
+  /* Override Indigo classes */
+  --color-indigo-50: var(--primary-50);
+  --color-indigo-100: var(--primary-100);
+  --color-indigo-200: var(--primary-200);
+  --color-indigo-300: var(--primary-300);
+  --color-indigo-400: var(--primary-400);
+  --color-indigo-500: var(--primary-500);
+  --color-indigo-600: var(--primary-600);
+  --color-indigo-700: var(--primary-700);
+  --color-indigo-800: var(--primary-800);
+  --color-indigo-900: var(--primary-900);
+  --color-indigo-950: var(--primary-950);
+
+  /* Override Violet classes */
+  --color-violet-50: var(--primary-50);
+  --color-violet-100: var(--primary-100);
+  --color-violet-200: var(--primary-200);
+  --color-violet-300: var(--primary-300);
+  --color-violet-400: var(--primary-400);
+  --color-violet-500: var(--primary-500);
+  --color-violet-600: var(--primary-600);
+  --color-violet-700: var(--primary-700);
+  --color-violet-800: var(--primary-800);
+  --color-violet-900: var(--primary-900);
+  --color-violet-950: var(--primary-950);
+  
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.2s ease, color 0.2s ease;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* Custom styles for tables and elements */
+.glassmorphism {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dark .glassmorphism {
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Soft pulse animation for AI insights banner */
+@keyframes soft-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.01);
+    opacity: 0.97;
+  }
+}
+
+.ai-pulse {
+  animation: soft-pulse 4s infinite ease-in-out;
+}
