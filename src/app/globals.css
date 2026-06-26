@@ -3,76 +3,76 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #f5f6f8; /* Sypher clean light gray background */
-  --foreground: #09090b; /* Zinc 950 text */
+  --background: #f4f6fa; /* Soft light lavender-gray background */
+  --foreground: #090e1a; /* Dark slate text */
   
   --card: #ffffff;
-  --card-foreground: #09090b;
+  --card-foreground: #090e1a;
   
-  --primary: #18181b; /* Zinc 900 - stark dark charcoal accent */
+  --primary: #3b82f6; /* Vibrant Blue accent */
   --primary-foreground: #ffffff;
   
-  --secondary: #27272a; /* Zinc 800 */
+  --secondary: #64748b; /* Slate-500 */
   --secondary-foreground: #ffffff;
   
-  --muted: #f4f4f5; /* Zinc 100 */
-  --muted-foreground: #71717a; /* Zinc 600 */
+  --muted: #f3f4f6; /* Slate-100 */
+  --muted-foreground: #64748b; /* Slate-500 */
   
-  --border: #e4e4e7; /* Zinc 200 borders */
-  --input: #f4f4f5;
+  --border: #e2e8f0; /* Slate-200 border */
+  --input: #f3f4f6;
   
-  --success: #00c853; /* Vibrant Green */
-  --warning: #ffd600; /* Vibrant Yellow */
-  --danger: #ff4081; /* Vibrant Rose/Pink */
+  --success: #10b981; /* Emerald-500 Success */
+  --warning: #f59e0b; /* Amber-500 Warning */
+  --danger: #ef4444; /* Red-500 Danger */
 
-  /* Grayscale palette variables (Light Mode) */
-  --primary-50: #fafafa;
-  --primary-100: #f4f4f5;
-  --primary-200: #e4e4e7;
-  --primary-300: #d4d4d8;
-  --primary-400: #a1a1aa;
-  --primary-500: #18181b;
-  --primary-600: #27272a;
-  --primary-700: #3f3f46;
-  --primary-800: #52525b;
-  --primary-900: #71717a;
-  --primary-950: #09090b;
+  /* Blue spectrum variables (Light Mode) */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+  --primary-950: #172554;
 }
 
 .dark {
-  --background: #09090b; /* Zinc 950 deep space background */
-  --foreground: #fafafa;
+  --background: #090a10; /* Premium deep dark space */
+  --foreground: #f8fafc; /* Slate-50 text */
   
-  --card: #18181b; /* Zinc 900 card background */
-  --card-foreground: #fafafa;
+  --card: #11131c; /* Soft dark card */
+  --card-foreground: #f8fafc;
   
-  --primary: #fafafa; /* Zinc 50 - clean white accent for dark mode */
-  --primary-foreground: #18181b;
+  --primary: #3b82f6; /* Blue accent for dark mode */
+  --primary-foreground: #ffffff;
   
-  --secondary: #27272a;
-  --secondary-foreground: #fafafa;
+  --secondary: #475569; /* Slate-600 */
+  --secondary-foreground: #f8fafc;
   
-  --muted: #27272a;
-  --muted-foreground: #a1a1aa;
+  --muted: #1e293b; /* Slate-800 */
+  --muted-foreground: #94a3b8; /* Slate-400 */
   
-  --border: #27272a;
-  --input: #27272a;
+  --border: #1e2230; /* Dark slate border */
+  --input: #1e293b;
   
-  --success: #00e676; /* Vibrant Green */
-  --warning: #ffea00; /* Vibrant Yellow */
-  --danger: #ff4081; /* Vibrant Rose/Pink */
+  --success: #34d399; /* Emerald-400 */
+  --warning: #fbbf24; /* Amber-400 */
+  --danger: #f87171; /* Red-400 */
 
-  /* Grayscale palette variables (Dark Mode) */
-  --primary-50: #09090b;
-  --primary-100: #18181b;
-  --primary-200: #27272a;
-  --primary-300: #3f3f46;
-  --primary-400: #52525b;
-  --primary-500: #fafafa;
-  --primary-600: #f4f4f5;
-  --primary-700: #e4e4e7;
-  --primary-800: #d4d4d8;
-  --primary-900: #a1a1aa;
+  /* Inverted Blue variables for dark mode */
+  --primary-50: #11131c;
+  --primary-100: #172554;
+  --primary-200: #1e3a8a;
+  --primary-300: #1e40af;
+  --primary-400: #1d4ed8;
+  --primary-500: #3b82f6;
+  --primary-600: #60a5fa;
+  --primary-700: #93c5fd;
+  --primary-800: #bfdbfe;
+  --primary-900: #dbeafe;
   --primary-950: #ffffff;
 }
 
@@ -187,3 +187,48 @@ body {
 .ai-pulse {
   animation: soft-pulse 4s infinite ease-in-out;
 }
+
+/* Premium Rounded Card and Button Styles matching Target Mockup */
+.premium-card {
+  background-color: var(--card);
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  padding: 24px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.015);
+  transition: all 0.3s ease;
+}
+
+.dark .premium-card {
+  box-shadow: 0 4px 25px -2px rgba(0, 0, 0, 0.2);
+}
+
+/* Soft Blue Glow Button styling */
+.blue-glow-btn {
+  background-color: #3b82f6;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.blue-glow-btn:hover {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.blue-glow-btn:active {
+  transform: translateY(0);
+}
+
+/* Sidebar circular navigation design variables */
+.sidebar-btn-active {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 18px -4px rgba(59, 130, 246, 0.4);
+}
+
+.dark .sidebar-btn-active {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 18px -4px rgba(59, 130, 246, 0.5);
+}
+
+

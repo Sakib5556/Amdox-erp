@@ -24,6 +24,9 @@ export interface Employee {
   joiningDate: string;
   avatarUrl?: string;
   aboutMe?: string;
+  bankName?: string;
+  bankAccount?: string;
+  bankIfsc?: string;
 }
 
 export interface Attendance {

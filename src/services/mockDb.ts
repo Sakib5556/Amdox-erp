@@ -43,46 +43,81 @@ export const mockDb = {
       }
     };
 
-    const seedVersion = localStorage.getItem('erp_seeded_version_v4');
+    const seedVersion = localStorage.getItem('erp_seeded_version_v5');
 
     if (seedVersion !== 'true') {
-      // Clear old seed keys to force fresh seeding
-      localStorage.removeItem('erp_global_users');
-      localStorage.removeItem('erp_seeded');
-      const keysToClear = [
-        'erp_employees', 'erp_attendance', 'erp_leaves', 'erp_products', 
-        'erp_vendors', 'erp_pos', 'erp_projects', 'erp_tasks', 
-        'erp_transactions', 'erp_activities', 'erp_notifications'
-      ];
-      keysToClear.forEach(k => {
-        localStorage.removeItem(`company_${k}`);
-      });
-      // Clear current auth session so that the user logs in fresh with new credentials
-      localStorage.removeItem('erp_auth_user');
-
       const todayStr = new Date().toISOString().split('T')[0];
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
 
       // 1. Seed Global Users (with sakib@amdox.com as Admin login)
+      const existingUsersStr = localStorage.getItem('erp_global_users');
+      const existingUsers: User[] = existingUsersStr ? JSON.parse(existingUsersStr) : [];
+
       const seedUsers: User[] = [
         { id: 'USR-ADMIN', name: 'Sakib Mulla', email: 'sakib@amdox.com', role: 'Admin', password: 'password', avatarUrl: '' },
         { id: 'USR-HR', name: 'Sarah Jenkins', email: 'hr@amdox.com', role: 'HR', password: 'password', avatarUrl: '' },
         { id: 'USR-MGR', name: 'John Doe', email: 'manager@amdox.com', role: 'Manager', password: 'password', avatarUrl: '' },
         { id: 'USR-EMP', name: 'Alex Rivera', email: 'employee@amdox.com', role: 'Employee', password: 'password', avatarUrl: '' }
       ];
-      localStorage.setItem('erp_global_users', JSON.stringify(seedUsers));
+
+      // Keep existing passwords/details if user exists in localStorage
+      const mergedUsers = seedUsers.map(su => {
+        const matched = existingUsers.find(eu => eu.email.toLowerCase() === su.email.toLowerCase() || eu.id === su.id);
+        if (matched) {
+          return {
+            ...su,
+            name: matched.name || su.name,
+            email: matched.email || su.email,
+            password: matched.password || su.password,
+            avatarUrl: matched.avatarUrl || su.avatarUrl,
+            personalEmail: matched.personalEmail || su.personalEmail,
+            aboutMe: matched.aboutMe || su.aboutMe
+          };
+        }
+        return su;
+      });
+
+      // Keep any other custom users
+      existingUsers.forEach(eu => {
+        if (!mergedUsers.some(mu => mu.email.toLowerCase() === eu.email.toLowerCase() || mu.id === eu.id)) {
+          mergedUsers.push(eu);
+        }
+      });
+
+      localStorage.setItem('erp_global_users', JSON.stringify(mergedUsers));
 
       // 2. Seed Employees
+      const existingEmployeesStr = localStorage.getItem(getStorageKey(KEYS.EMPLOYEES));
+      const existingEmployees: Employee[] = existingEmployeesStr ? JSON.parse(existingEmployeesStr) : [];
+
       const seedEmployees: Employee[] = [
-        { emp_id: 'EMP-01', name: 'Sarah Jenkins', department: 'HR', designation: 'HR Manager', email: 'hr@amdox.com', personalEmail: 'sarah.j@gmail.com', phone: '+91 98765 43210', salary: 95000, status: 'Active', joiningDate: '2025-01-15', avatarUrl: '' },
-        { emp_id: 'EMP-02', name: 'John Doe', department: 'Operations', designation: 'Operations Manager', email: 'manager@amdox.com', personalEmail: 'john.doe@gmail.com', phone: '+91 98765 43211', salary: 120000, status: 'Active', joiningDate: '2025-02-10', avatarUrl: '' },
-        { emp_id: 'EMP-03', name: 'Alex Rivera', department: 'IT', designation: 'Senior Software Engineer', email: 'employee@amdox.com', personalEmail: 'alex.rivera@gmail.com', phone: '+91 98765 43212', salary: 85000, status: 'Active', joiningDate: '2025-03-01', avatarUrl: '' },
-        { emp_id: 'EMP-04', name: 'Jane Smith', department: 'IT', designation: 'Developer', email: 'jane.smith@amdox.com', personalEmail: 'jane.s@gmail.com', phone: '+91 98765 43213', salary: 75000, status: 'Active', joiningDate: '2025-04-12', avatarUrl: '' },
-        { emp_id: 'EMP-05', name: 'Robert Johnson', department: 'Finance', designation: 'Accountant', email: 'robert.j@amdox.com', personalEmail: 'robert.j@gmail.com', phone: '+91 98765 43214', salary: 70000, status: 'Active', joiningDate: '2025-05-20', avatarUrl: '' }
+        { emp_id: 'EMP-01', name: 'Sarah Jenkins', department: 'HR', designation: 'HR Manager', email: 'hr@amdox.com', personalEmail: 'sarah.j@gmail.com', phone: '+91 98765 43210', salary: 95000, status: 'Active', joiningDate: '2025-01-15', avatarUrl: '', bankName: 'HDFC Bank', bankAccount: '50100432891201', bankIfsc: 'HDFC0000104' },
+        { emp_id: 'EMP-02', name: 'John Doe', department: 'Operations', designation: 'Operations Manager', email: 'manager@amdox.com', personalEmail: 'john.doe@gmail.com', phone: '+91 98765 43211', salary: 120000, status: 'Active', joiningDate: '2025-02-10', avatarUrl: '', bankName: 'ICICI Bank', bankAccount: '000401509822', bankIfsc: 'ICIC0000004' },
+        { emp_id: 'EMP-03', name: 'Alex Rivera', department: 'IT', designation: 'Senior Software Engineer', email: 'employee@amdox.com', personalEmail: 'alex.rivera@gmail.com', phone: '+91 98765 43212', salary: 85000, status: 'Active', joiningDate: '2025-03-01', avatarUrl: '', bankName: 'State Bank of India', bankAccount: '30456128911', bankIfsc: 'SBIN0000301' },
+        { emp_id: 'EMP-04', name: 'Jane Smith', department: 'IT', designation: 'Developer', email: 'jane.smith@amdox.com', personalEmail: 'jane.s@gmail.com', phone: '+91 98765 43213', salary: 75000, status: 'Active', joiningDate: '2025-04-12', avatarUrl: '', bankName: 'HDFC Bank', bankAccount: '50100432891256', bankIfsc: 'HDFC0000104' },
+        { emp_id: 'EMP-05', name: 'Robert Johnson', department: 'Finance', designation: 'Accountant', email: 'robert.j@amdox.com', personalEmail: 'robert.j@gmail.com', phone: '+91 98765 43214', salary: 70000, status: 'Active', joiningDate: '2025-05-20', avatarUrl: '', bankName: 'Axis Bank', bankAccount: '912010034567891', bankIfsc: 'UTIB0000004' }
       ];
-      localStorage.setItem(getStorageKey(KEYS.EMPLOYEES), JSON.stringify(seedEmployees));
+
+      const mergedEmployees = seedEmployees.map(se => {
+        const matched = existingEmployees.find(ee => ee.email.toLowerCase() === se.email.toLowerCase() || ee.emp_id === se.emp_id);
+        if (matched) {
+          return {
+            ...se,
+            ...matched
+          };
+        }
+        return se;
+      });
+
+      existingEmployees.forEach(ee => {
+        if (!mergedEmployees.some(me => me.email.toLowerCase() === ee.email.toLowerCase() || me.emp_id === ee.emp_id)) {
+          mergedEmployees.push(ee);
+        }
+      });
+
+      localStorage.setItem(getStorageKey(KEYS.EMPLOYEES), JSON.stringify(mergedEmployees));
 
       // 3. Seed Attendance
       const seedAttendance: Attendance[] = [
@@ -174,12 +209,56 @@ export const mockDb = {
       ];
       localStorage.setItem(getStorageKey(KEYS.NOTIFICATIONS), JSON.stringify(seedNotifications));
 
-      localStorage.setItem('erp_seeded_version_v4', 'true');
+      localStorage.setItem('erp_seeded_version_v5', 'true');
       localStorage.setItem('erp_seeded', 'true');
+    }
+
+    if (!localStorage.getItem('company_bank_name')) {
+      localStorage.setItem('company_bank_name', 'State Bank of India');
+    }
+    if (!localStorage.getItem('company_bank_account')) {
+      localStorage.setItem('company_bank_account', '33045612890');
+    }
+    if (!localStorage.getItem('company_bank_ifsc')) {
+      localStorage.setItem('company_bank_ifsc', 'SBIN0000301');
+    }
+    if (!localStorage.getItem('company_bank_balance')) {
+      localStorage.setItem('company_bank_balance', '500000');
     }
 
     checkAndInitEmpty(KEYS.GLOBAL_USERS);
     checkAndInitEmpty(KEYS.EMPLOYEES);
+
+    // Self-healing check for duplicate employee IDs (e.g. from deleted items length shifts)
+    const employeesList = mockDb.getEmployees();
+    if (employeesList.length > 0) {
+      const activeIds = new Set<string>();
+      let modified = false;
+      const updatedList = employeesList.map(emp => {
+        if (!emp.emp_id || activeIds.has(emp.emp_id)) {
+          let num = 1;
+          let newId = '';
+          while (true) {
+            const candidateId = `EMP-${num < 10 ? '0' : ''}${num}`;
+            if (!activeIds.has(candidateId) && !employeesList.some(e => e !== emp && e.emp_id === candidateId)) {
+              newId = candidateId;
+              break;
+            }
+            num++;
+          }
+          activeIds.add(newId);
+          modified = true;
+          return { ...emp, emp_id: newId };
+        } else {
+          activeIds.add(emp.emp_id);
+          return emp;
+        }
+      });
+      if (modified) {
+        mockDb.set(KEYS.EMPLOYEES, updatedList);
+      }
+    }
+
     checkAndInitEmpty(KEYS.ATTENDANCE);
     checkAndInitEmpty(KEYS.LEAVES);
     checkAndInitEmpty(KEYS.PRODUCTS);
@@ -190,6 +269,8 @@ export const mockDb = {
     checkAndInitEmpty(KEYS.TRANSACTIONS);
     checkAndInitEmpty(KEYS.ACTIVITIES);
     checkAndInitEmpty(KEYS.NOTIFICATIONS);
+    
+    mockDb.recalculateCompanyBankBalance();
   },
 
   // Generic Get & Set
@@ -226,20 +307,48 @@ export const mockDb = {
   getEmployees: (): Employee[] => mockDb.get<Employee>(KEYS.EMPLOYEES),
   addEmployee: (emp: Omit<Employee, 'emp_id'>): Employee => {
     const list = mockDb.getEmployees();
-    const newId = `EMP-0${list.length + 1}`.replace('EMP-00', 'EMP-0');
+    
+    // Find the next available unique ID (filling any gaps from deleted employees)
+    const activeIds = new Set(list.map(e => e.emp_id));
+    let num = 1;
+    let newId = '';
+    while (true) {
+      const candidateId = `EMP-${num < 10 ? '0' : ''}${num}`;
+      if (!activeIds.has(candidateId)) {
+        newId = candidateId;
+        break;
+      }
+      num++;
+    }
+
     const newEmp: Employee = { ...emp, emp_id: newId };
     list.unshift(newEmp);
     mockDb.set(KEYS.EMPLOYEES, list);
     mockDb.logActivity(`Employee ${emp.name} added to ${emp.department} department`, 'HR');
     return newEmp;
   },
-  updateEmployee: (updated: Employee): void => {
+  updateEmployee: (updated: Employee, oldEmail: string, role: UserRole): void => {
     const list = mockDb.getEmployees();
     const index = list.findIndex(e => e.emp_id === updated.emp_id);
     if (index !== -1) {
       list[index] = updated;
       mockDb.set(KEYS.EMPLOYEES, list);
-      mockDb.logActivity(`Employee details updated for ${updated.name}`, 'HR');
+
+      // Update global user credentials
+      if (typeof window !== 'undefined') {
+        const storedUsers = localStorage.getItem('erp_global_users');
+        if (storedUsers) {
+          const users = JSON.parse(storedUsers);
+          const uIndex = users.findIndex((u: any) => u.email.toLowerCase() === oldEmail.toLowerCase());
+          if (uIndex !== -1) {
+            users[uIndex].name = updated.name;
+            users[uIndex].email = updated.email;
+            users[uIndex].role = role;
+            localStorage.setItem('erp_global_users', JSON.stringify(users));
+          }
+        }
+      }
+      mockDb.logActivity(`Employee details updated for ${updated.name} (Role: ${role})`, 'HR');
     }
   },
   deleteEmployee: (id: string): void => {
@@ -497,6 +606,23 @@ export const mockDb = {
 
   // TRANSACTIONS
   getTransactions: (): Transaction[] => mockDb.get<Transaction>(KEYS.TRANSACTIONS),
+
+  recalculateCompanyBankBalance: (): void => {
+    if (typeof window === 'undefined') return;
+    const startingBalance = 500000; // Baseline starting balance
+    const txns = mockDb.getTransactions();
+    let balance = startingBalance;
+    txns.forEach(t => {
+      if (t.type === 'Revenue') {
+        balance += t.amount;
+      } else if (t.type === 'Expense') {
+        balance -= t.amount;
+      }
+    });
+    localStorage.setItem('company_bank_balance', balance.toString());
+    window.dispatchEvent(new StorageEvent('storage', { key: 'company_bank_balance' }));
+  },
+
   addTransaction: (txn: Omit<Transaction, 'transaction_id'>): Transaction => {
     const list = mockDb.getTransactions();
     const newId = `TXN-0${list.length + 1}`.replace('TXN-00', 'TXN-0');
@@ -504,6 +630,9 @@ export const mockDb = {
     list.unshift(newTxn);
     mockDb.set(KEYS.TRANSACTIONS, list);
     
+    // Recalculate company bank balance in real time based on transactions list
+    mockDb.recalculateCompanyBankBalance();
+
     mockDb.logActivity(`New ${txn.type.toLowerCase()} of ₹${txn.amount} logged under ${txn.category}`, 'Finance');
     return newTxn;
   },

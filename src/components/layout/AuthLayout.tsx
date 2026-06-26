@@ -21,14 +21,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   // Loading Screen
   if (isLoading || (!isAuthenticated && !user)) {
     return (
-      <div className="h-screen w-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-4">
-        <div className="bg-indigo-600 p-3 rounded-2xl shadow-lg shadow-indigo-500/20">
+      <div className="h-screen w-screen bg-background text-foreground flex flex-col items-center justify-center gap-4 font-sans">
+        <div className="bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-500/20">
           <Building2 className="h-10 w-10 text-white animate-pulse" />
         </div>
         <div className="flex flex-col items-center">
           <h2 className="font-bold text-lg text-slate-800 dark:text-slate-200">CloudERP Suite</h2>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-2">
-            <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
+          <p className="text-xs text-slate-400 dark:text-slate-550 mt-1 flex items-center gap-2">
+            <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
             Initializing secure database session...
           </p>
         </div>
@@ -38,16 +38,15 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   // Double check: if user role route matching is needed in the future, we can add it here.
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100">
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
       
       {/* Sidebar Navigation */}
-      <Suspense fallback={<div className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shrink-0" />}>
+      <Suspense fallback={<div className="w-64 border-r border-slate-200/40 dark:border-slate-800/40 shrink-0 bg-white dark:bg-slate-900" />}>
         <Sidebar />
       </Suspense>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        
         {/* Top Navbar */}
         <Navbar />
 
@@ -57,8 +56,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             {children}
           </div>
         </main>
-        
       </div>
+      
     </div>
   );
 }

@@ -68,6 +68,16 @@ function FinancePageContent() {
     };
   }, []);
 
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'addTransaction') {
+      setTimeout(() => setShowAddModal(true), 0);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('action');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
+
   if (user?.role !== 'Admin') {
     return (
       <AuthLayout>

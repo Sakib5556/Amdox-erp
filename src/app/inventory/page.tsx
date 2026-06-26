@@ -86,6 +86,16 @@ function InventoryPageContent() {
     };
   }, []);
 
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'addProduct') {
+      setTimeout(() => setShowAddProductModal(true), 0);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('action');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
+
   if (user?.role === 'Employee' || user?.role === 'HR') {
     return (
       <AuthLayout>

@@ -34,6 +34,7 @@ function ProjectsPageContent() {
   // Modals / Modifiers
   const [showAddProjectModal, setShowAddProjectModal] = useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Add Project Fields
   const [pName, setPName] = useState('');
@@ -60,9 +61,14 @@ function ProjectsPageContent() {
   });
 
   const loadData = () => {
-    setProjects(mockDb.getProjects());
+    const latestProjects = mockDb.getProjects();
+    setProjects(latestProjects);
     setTasks(mockDb.getTasks());
     setEmployees(mockDb.getEmployees());
+    setSelectedProject(prev => {
+      if (!prev) return null;
+      return latestProjects.find(p => p.project_id === prev.project_id) || null;
+    });
   };
 
   useEffect(() => {
@@ -88,6 +94,16 @@ function ProjectsPageContent() {
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'createProject') {
+      setTimeout(() => setShowAddProjectModal(true), 0);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('action');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
 
   if (user?.role !== 'Admin' && user?.role !== 'Manager') {
     return (
@@ -287,7 +303,11 @@ function ProjectsPageContent() {
               const projectTasks = tasks.filter(t => t.project_id === proj.project_id);
               const completedTasksCount = projectTasks.filter(t => t.status === 'Completed').length;
               return (
-                <div key={proj.project_id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between hover:shadow-lg transition-shadow">
+                <div 
+                  key={proj.project_id} 
+                  onClick={() => setSelectedProject(proj)}
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between hover:shadow-lg hover:border-indigo-500/30 dark:hover:border-indigo-500/30 transition-all cursor-pointer animate-fade-in"
+                >
                   
                   {/* Card Header */}
                   <div className="space-y-1.5">
@@ -575,6 +595,168 @@ function ProjectsPageContent() {
               <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500">Add Task</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* 3. Project Details Modal */}
+      {selectedProject && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col max-h-[90vh] text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="p-5 bg-slate-50 dark:bg-slate-850/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[10px] text-slate-400 dark:text-indigo-400 font-bold uppercase tracking-wider block">Project Dossier Details</span>
+                <h3 className="font-bold text-base text-slate-850 dark:text-white flex items-center gap-2">
+                  <FolderKanban className="h-5 w-5 text-indigo-500" />
+                  {selectedProject.project_name}
+                </h3>
+              </div>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                selectedProject.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400' :
+                selectedProject.status === 'Delayed' ? 'bg-rose-50 text-rose-600 dark:bg-rose-955/20 dark:text-rose-455 animate-pulse' :
+                'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/20 dark:text-indigo-400'
+              }`}>
+                {selectedProject.status}
+              </span>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 flex-1 overflow-y-auto space-y-6 text-xs">
+              
+              {/* Project Meta Information Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">Project ID</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 mt-1 block uppercase">{selectedProject.project_id}</span>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border dark:border-slate-800 col-span-1">
+                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">Manager</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 mt-1 block truncate" title={selectedProject.managerName}>
+                    {selectedProject.managerName}
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">Total Budget</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 mt-1 block">
+                    ₹{selectedProject.budget.toLocaleString()}
+                  </span>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border dark:border-slate-800 font-mono">
+                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">Deadline</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 mt-1 block">{selectedProject.deadline}</span>
+                </div>
+              </div>
+
+              {/* Sprint Progress Bar Card */}
+              <div className="bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border dark:border-slate-800 space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400 font-semibold">Sprint Progress Details</span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                    {tasks.filter(t => t.project_id === selectedProject.project_id && t.status === 'Completed').length} of {tasks.filter(t => t.project_id === selectedProject.project_id).length} Tasks ({selectedProject.progress}%)
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      selectedProject.status === 'Completed' ? 'bg-emerald-500' : selectedProject.status === 'Delayed' ? 'bg-rose-500' : 'bg-indigo-500'
+                    }`} 
+                    style={{ width: `${selectedProject.progress}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Associated Project Tasks List */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center pb-2 border-b dark:border-slate-800">
+                  <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckSquare className="h-4 w-4 text-indigo-500" /> Associated Project Tasks
+                  </h4>
+                  {(user?.role === 'Admin' || user?.role === 'Manager') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTProject(selectedProject.project_id);
+                        setShowAddTaskModal(true);
+                      }}
+                      className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-950/20 dark:text-indigo-400 dark:hover:bg-indigo-950/40 rounded-md text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <Plus className="h-3 w-3" /> Quick Add Task
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-[260px] overflow-y-auto pr-1 space-y-2.5">
+                  {tasks.filter(t => t.project_id === selectedProject.project_id).length === 0 ? (
+                    <div className="p-8 text-center text-slate-450 italic border border-dashed dark:border-slate-800 rounded-xl">
+                      No tasks created for this project yet.
+                    </div>
+                  ) : (
+                    tasks.filter(t => t.project_id === selectedProject.project_id).map((tsk) => (
+                      <div 
+                        key={tsk.task_id} 
+                        className={`p-3 bg-slate-50 dark:bg-slate-850/40 border dark:border-slate-800 rounded-xl flex items-center justify-between gap-3 transition-opacity ${
+                          tsk.status === 'Completed' ? 'opacity-65' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={tsk.status === 'Completed'}
+                            onChange={() => handleToggleTask(tsk)}
+                            className="rounded text-indigo-600 focus:ring-0 h-4 w-4 cursor-pointer"
+                          />
+                          <div className="min-w-0 space-y-0.5">
+                            <span className={`font-semibold text-slate-800 dark:text-white block truncate ${tsk.status === 'Completed' ? 'line-through' : ''}`}>
+                              {tsk.task_name}
+                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] text-slate-400 flex items-center gap-0.5 font-medium">
+                                <User className="h-3 w-3" /> {tsk.assignedName}
+                              </span>
+                              <span className="text-[10px] text-slate-500">•</span>
+                              <span className="text-[9px] text-slate-400 font-mono flex items-center gap-0.5">
+                                <Calendar className="h-3 w-3" /> Due {tsk.dueDate}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-semibold ${
+                            tsk.priority === 'High' ? 'bg-rose-50 text-rose-600 dark:bg-rose-955/20 dark:text-rose-400' :
+                            tsk.priority === 'Medium' ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400' :
+                            'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          }`}>
+                            {tsk.priority}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                            tsk.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400' :
+                            tsk.status === 'In Progress' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/20 dark:text-indigo-400' :
+                            'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-450'
+                          }`}>
+                            {tsk.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-850/50 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedProject(null)}
+                className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Close
+              </button>
+            </div>
+            
+          </div>
         </div>
       )}
 

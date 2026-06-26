@@ -10,7 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Employee, Attendance, LeaveRequest } from '../../types';
 import { 
   Users, Calendar, FileText, BadgeAlert, Plus, Search, Filter, 
-  Trash2, Eye, Award, DollarSign, Clock, Check, X, FileDown, ShieldAlert
+  Trash2, Eye, Award, DollarSign, Clock, Check, X, FileDown, ShieldAlert, Edit
 } from 'lucide-react';
 
 function HRPageContent() {
@@ -37,7 +37,7 @@ function HRPageContent() {
 
   // Form Fields for Add Employee
   const [name, setName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'Employee' | 'Manager'>('Employee');
+  const [selectedRole, setSelectedRole] = useState<'Employee' | 'Manager' | 'HR'>('Employee');
   const [dept, setDept] = useState('IT');
   const [designation, setDesignation] = useState('');
   const [email, setEmail] = useState('');
@@ -46,6 +46,58 @@ function HRPageContent() {
   const [phone, setPhone] = useState('');
   const [salary, setSalary] = useState('');
   const [joiningDate, setJoiningDate] = useState(new Date().toISOString().split('T')[0]);
+  const [bankName, setBankName] = useState('');
+  const [bankAccount, setBankAccount] = useState('');
+  const [bankIfsc, setBankIfsc] = useState('');
+  const [sendEmailInvite, setSendEmailInvite] = useState(true);
+
+  // Form Fields for Edit Employee
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEmpId, setEditingEmpId] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState<'Employee' | 'Manager' | 'HR'>('Employee');
+  const [editDept, setEditDept] = useState('IT');
+  const [editDesignation, setEditDesignation] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editOldEmail, setEditOldEmail] = useState('');
+  const [editPersonalEmail, setEditPersonalEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editSalary, setEditSalary] = useState('');
+  const [editJoiningDate, setEditJoiningDate] = useState('');
+  const [editBankName, setEditBankName] = useState('');
+  const [editBankAccount, setEditBankAccount] = useState('');
+  const [editBankIfsc, setEditBankIfsc] = useState('');
+
+  // Post-creation credentials popup display state
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    name: string;
+    email: string;
+    personalEmail: string;
+    password: string;
+    method: 'gmail' | 'emailjs';
+    emailjsSuccess: boolean;
+    senderName?: string;
+    senderEmail?: string;
+    senderRole?: string;
+  } | null>(null);
+
+  // Razorpay Payout Simulation State
+  const [razorpayCheckout, setRazorpayCheckout] = useState<{
+    items: {
+      emp_id: string;
+      name: string;
+      bankName: string;
+      bankAccount: string;
+      bankIfsc: string;
+      amount: number;
+      bonus: number;
+      deduction: number;
+      tax: number;
+    }[];
+    totalAmount: number;
+    status: 'idle' | 'securing' | 'validating' | 'transferring' | 'success';
+    payoutId?: string;
+  } | null>(null);
   const [deptManagers, setDeptManagers] = useState<Record<string, string>>({
     IT: '',
     HR: '',
@@ -65,6 +117,8 @@ function HRPageContent() {
   // Payroll Calculation States
   const [bonus, setBonus] = useState<Record<string, number>>({});
   const [deduction, setDeduction] = useState<Record<string, number>>({});
+  const [payoutStatuses, setPayoutStatuses] = useState<Record<string, 'Unpaid' | 'Processing' | 'Paid'>>({});
+  const [payoutTxIds, setPayoutTxIds] = useState<Record<string, string>>({});
 
   // Find corresponding employee record
   const currentEmp = employees.find(e => e.email.toLowerCase() === user?.email?.toLowerCase());
@@ -91,6 +145,18 @@ function HRPageContent() {
       const storedManagers = localStorage.getItem('erp_department_managers');
       if (storedManagers) {
         setDeptManagers(JSON.parse(storedManagers));
+      }
+      const storedStatuses = localStorage.getItem('erp_payroll_statuses_2026_06');
+      if (storedStatuses) {
+        setPayoutStatuses(JSON.parse(storedStatuses));
+      } else {
+        setPayoutStatuses({});
+      }
+      const storedTxIds = localStorage.getItem('erp_payroll_txids_2026_06');
+      if (storedTxIds) {
+        setPayoutTxIds(JSON.parse(storedTxIds));
+      } else {
+        setPayoutTxIds({});
       }
     }
   };
@@ -119,6 +185,16 @@ function HRPageContent() {
     };
   }, []);
 
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'addEmployee') {
+      setTimeout(() => setShowAddModal(true), 0);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('action');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [searchParams]);
+
   const changeTab = (tabName: string) => {
     router.push(`/hr?tab=${tabName}`);
   };
@@ -140,13 +216,27 @@ function HRPageContent() {
   };
 
   // 1. Employees Tab Functions
-  const handleAddEmployee = (e: React.FormEvent) => {
+  const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (user?.role !== 'Admin' && user?.role !== 'HR') {
       alert('Only Admin and HR are authorized to create user accounts.');
       return;
     }
     if (!name || !email || !personalEmail || !password || !designation || !salary || !joiningDate) return;
+
+    // Enforce role assignment permissions for HR
+    if (selectedRole === 'HR') {
+      if (user?.role !== 'Admin') {
+        alert('Only Administrators are authorized to create HR accounts.');
+        return;
+      }
+      const users = mockDb.getGlobalUsers();
+      const hasHR = users.some(u => u.role === 'HR');
+      if (hasHR) {
+        alert('An HR account is already registered in the system. Only one HR account is permitted.');
+        return;
+      }
+    }
 
     // 1. Create global user account in erp_global_users
     mockDb.registerGlobalUser({
@@ -168,17 +258,80 @@ function HRPageContent() {
       phone: phone || '+91 99999 88888',
       salary: parseFloat(salary),
       status: 'Active',
-      joiningDate: joiningDate || new Date().toISOString().split('T')[0]
+      joiningDate: joiningDate || new Date().toISOString().split('T')[0],
+      bankName: bankName || undefined,
+      bankAccount: bankAccount || undefined,
+      bankIfsc: bankIfsc || undefined
+    });
+
+    // Determine email dispatch settings
+    const method = (localStorage.getItem('company_email_method') || 'gmail') as 'gmail' | 'emailjs';
+    const serviceId = localStorage.getItem('company_emailjs_service_id') || '';
+    const templateId = localStorage.getItem('company_emailjs_template_id') || '';
+    const publicKey = localStorage.getItem('company_emailjs_public_key') || '';
+
+    let emailjsSuccess = false;
+
+    if (sendEmailInvite) {
+      if (method === 'emailjs' && serviceId && templateId && publicKey) {
+        // Send email via EmailJS HTTP REST
+        try {
+          const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              service_id: serviceId,
+              template_id: templateId,
+              user_id: publicKey,
+              template_params: {
+                to_email: personalEmail,
+                employee_name: name,
+                work_email: email,
+                password: password,
+                company_name: localStorage.getItem('erp_comp_name') || 'Amdox Technologies, Inc.',
+                sender_name: user?.name || 'HR Team',
+                sender_email: user?.email || 'hr@amdox.com',
+                sender_role: user?.role || 'HR'
+              },
+            }),
+          });
+          if (response.ok) {
+            emailjsSuccess = true;
+            mockDb.addNotification(
+              `Credentials sent to ${name} (${personalEmail}) automatically via EmailJS.`,
+              'success',
+              ['Admin', 'HR']
+            );
+          } else {
+            console.error('EmailJS Error:', await response.text());
+          }
+        } catch (err) {
+          console.error('EmailJS Dispatch Failed:', err);
+        }
+      }
+    }
+
+    // Set popup state
+    setCreatedCredentials({
+      name,
+      email,
+      personalEmail,
+      password,
+      method: sendEmailInvite ? method : 'gmail',
+      emailjsSuccess,
+      senderName: user?.name || 'HR Team',
+      senderEmail: user?.email || 'hr@amdox.com',
+      senderRole: user?.role || 'HR'
     });
 
     // 3. Trigger mock mailing alert and log system notification
     mockDb.addNotification(
-      `Welcome email successfully simulated and sent to personal email: ${personalEmail} with corporate login ID: ${email} and password: ${password}`,
+      `Welcome email initialized for: ${personalEmail} with corporate login ID: ${email}`,
       'success',
       ['Admin', 'HR']
     );
-
-    alert(`${selectedRole} added successfully!\n\nCredentials:\nWork Email: ${email}\nInitial Password: ${password}\n\n(A welcome email has been mock-sent to: ${personalEmail})`);
 
     setName('');
     setSelectedRole('Employee');
@@ -189,8 +342,72 @@ function HRPageContent() {
     setPhone('');
     setSalary('');
     setJoiningDate(new Date().toISOString().split('T')[0]);
+    setBankName('');
+    setBankAccount('');
+    setBankIfsc('');
     setShowAddModal(false);
     loadData();
+  };
+
+  const openEditModal = (emp: Employee) => {
+    const users = mockDb.getGlobalUsers();
+    const matchUser = users.find(u => u.email.toLowerCase() === emp.email.toLowerCase());
+    const role = matchUser?.role || 'Employee';
+
+    setEditingEmpId(emp.emp_id);
+    setEditName(emp.name);
+    setEditRole(role);
+    setEditDept(emp.department);
+    setEditDesignation(emp.designation);
+    setEditEmail(emp.email);
+    setEditOldEmail(emp.email);
+    setEditPersonalEmail(emp.personalEmail || '');
+    setEditPhone(emp.phone || '');
+    setEditSalary(emp.salary.toString());
+    setEditJoiningDate(emp.joiningDate);
+    setEditBankName(emp.bankName || '');
+    setEditBankAccount(emp.bankAccount || '');
+    setEditBankIfsc(emp.bankIfsc || '');
+    setShowEditModal(true);
+  };
+
+  const handleEditEmployee = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (user?.role !== 'Admin') {
+      alert('Only Administrators are authorized to edit accounts.');
+      return;
+    }
+    if (!editName || !editEmail || !editPersonalEmail || !editDesignation || !editSalary || !editJoiningDate) return;
+
+    if (editRole === 'HR') {
+      const users = mockDb.getGlobalUsers();
+      const hasOtherHR = users.some(u => u.role === 'HR' && u.email.toLowerCase() !== editOldEmail.toLowerCase());
+      if (hasOtherHR) {
+        alert('An HR account is already registered in the system. Only one HR account is permitted.');
+        return;
+      }
+    }
+
+    const updatedEmployee: Employee = {
+      emp_id: editingEmpId,
+      name: editName,
+      department: editDept,
+      designation: editDesignation,
+      email: editEmail,
+      personalEmail: editPersonalEmail,
+      phone: editPhone || '+91 99999 88888',
+      salary: parseFloat(editSalary),
+      status: employees.find(e => e.emp_id === editingEmpId)?.status || 'Active',
+      joiningDate: editJoiningDate,
+      bankName: editBankName || undefined,
+      bankAccount: editBankAccount || undefined,
+      bankIfsc: editBankIfsc || undefined
+    };
+
+    mockDb.updateEmployee(updatedEmployee, editOldEmail, editRole);
+    setShowEditModal(false);
+    loadData();
+    alert('Employee details updated successfully!');
   };
 
   const handleDeleteEmployee = (id: string) => {
@@ -329,6 +546,135 @@ function HRPageContent() {
       setDeduction(prev => ({ ...prev, [empId]: numericVal }));
     }
   };
+
+  const handleInitiatePayout = (emp: Employee, netPay: number, empBonus: number, empDeduct: number, tax: number) => {
+    if (!emp.bankName || !emp.bankAccount || !emp.bankIfsc) {
+      alert(`Cannot process payout. Bank account details (Name, Account, or IFSC) are missing for ${emp.name}. Please edit their profile in the Employees tab first.`);
+      return;
+    }
+
+    setRazorpayCheckout({
+      items: [{
+        emp_id: emp.emp_id,
+        name: emp.name,
+        bankName: emp.bankName,
+        bankAccount: emp.bankAccount,
+        bankIfsc: emp.bankIfsc,
+        amount: netPay,
+        bonus: empBonus,
+        deduction: empDeduct,
+        tax: tax
+      }],
+      totalAmount: netPay,
+      status: 'idle'
+    });
+  };
+
+  const handleInitiateBulkPayout = () => {
+    const unpaidActive = filteredPayrollEmps.filter(e => payoutStatuses[e.emp_id] !== 'Paid');
+    if (unpaidActive.length === 0) {
+      alert('All active employees have already been paid for this period.');
+      return;
+    }
+
+    const eligibleItems = unpaidActive.filter(e => e.bankName && e.bankAccount && e.bankIfsc).map(emp => {
+      const empBonus = bonus[emp.emp_id] || 0;
+      const empDeduct = deduction[emp.emp_id] || 0;
+      const tax = Math.round(emp.salary * 0.105);
+      const netPay = emp.salary + empBonus - empDeduct - tax;
+      return {
+        emp_id: emp.emp_id,
+        name: emp.name,
+        bankName: emp.bankName!,
+        bankAccount: emp.bankAccount!,
+        bankIfsc: emp.bankIfsc!,
+        amount: netPay,
+        bonus: empBonus,
+        deduction: empDeduct,
+        tax: tax
+      };
+    });
+
+    if (eligibleItems.length === 0) {
+      alert('Cannot process bulk payout. None of the active unpaid employees have bank details configured.');
+      return;
+    }
+
+    const total = eligibleItems.reduce((sum, item) => sum + item.amount, 0);
+
+    setRazorpayCheckout({
+      items: eligibleItems,
+      totalAmount: total,
+      status: 'idle'
+    });
+  };
+
+  const handleAuthorizePayout = () => {
+    if (!razorpayCheckout) return;
+
+    // Phase 1: Securing connection
+    setRazorpayCheckout(prev => prev ? { ...prev, status: 'securing' } : null);
+
+    // Phase 2: Validating
+    setTimeout(() => {
+      setRazorpayCheckout(prev => prev ? { ...prev, status: 'validating' } : null);
+    }, 1200);
+
+    // Phase 3: Transferring
+    setTimeout(() => {
+      setRazorpayCheckout(prev => prev ? { ...prev, status: 'transferring' } : null);
+    }, 2400);
+
+    // Phase 4: Success
+    setTimeout(() => {
+      const pId = `pay_${Math.random().toString(36).substring(2, 16).toUpperCase()}`;
+      
+      // Update statuses in localStorage
+      const currentStatuses = { ...payoutStatuses };
+      const currentTxIds = { ...payoutTxIds };
+
+      razorpayCheckout.items.forEach(item => {
+        currentStatuses[item.emp_id] = 'Paid';
+        currentTxIds[item.emp_id] = pId;
+
+        // Log actual ledger transaction in mock database
+        mockDb.addTransaction({
+          type: 'Expense',
+          category: 'Salary',
+          amount: item.amount,
+          date: new Date().toISOString().split('T')[0],
+          description: `${item.name} Salary Payout (via Razorpay - Ref: ${pId})`
+        });
+
+        // Add user notification
+        mockDb.addNotification(
+          `Your salary of ₹${item.amount.toLocaleString()} for June 2026 has been disbursed via Razorpay. Ref: ${pId}`,
+          'success',
+          ['Employee'],
+          employees.find(e => e.emp_id === item.emp_id)?.email
+        );
+      });
+
+      localStorage.setItem('erp_payroll_statuses_2026_06', JSON.stringify(currentStatuses));
+      localStorage.setItem('erp_payroll_txids_2026_06', JSON.stringify(currentTxIds));
+
+      setPayoutStatuses(currentStatuses);
+      setPayoutTxIds(currentTxIds);
+
+      setRazorpayCheckout(prev => prev ? { ...prev, status: 'success', payoutId: pId } : null);
+
+      mockDb.logActivity(
+        `Disbursed payroll for ${razorpayCheckout.items.length} employees totalling ₹${razorpayCheckout.totalAmount.toLocaleString()} via Razorpay (Ref: ${pId})`,
+        'Finance'
+      );
+    }, 3800);
+  };
+
+  const companyBankName = typeof window !== 'undefined' ? localStorage.getItem('company_bank_name') || 'State Bank of India' : 'State Bank of India';
+  const companyBankAccount = typeof window !== 'undefined' ? localStorage.getItem('company_bank_account') || '33045612890' : '33045612890';
+  const companyBankIfsc = typeof window !== 'undefined' ? localStorage.getItem('company_bank_ifsc') || 'SBIN0000301' : 'SBIN0000301';
+  const companyBankBalanceStr = typeof window !== 'undefined' ? localStorage.getItem('company_bank_balance') || '500000' : '500000';
+  const companyBankBalance = parseFloat(companyBankBalanceStr);
 
   return (
     <AuthLayout>
@@ -494,6 +840,15 @@ function HRPageContent() {
                                 >
                                   <Eye className="h-4 w-4" />
                                 </button>
+                                {user?.role === 'Admin' && (
+                                  <button
+                                    onClick={() => openEditModal(emp)}
+                                    className="p-1 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded text-indigo-600 dark:text-indigo-400"
+                                    title="Edit Employee Details"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                )}
                                 {(user?.role === 'Admin' || user?.role === 'HR') && (
                                   <button 
                                     onClick={() => handleDeleteEmployee(emp.emp_id)}
@@ -954,23 +1309,33 @@ function HRPageContent() {
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             <div className="p-4 border-b dark:border-slate-850 flex items-center justify-between">
               <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider">Payroll Processing Ledger</h3>
-              {user?.role === 'Admin' && (
-                <span className="text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-450 px-2 py-0.5 font-bold rounded">
-                  Digital Signature Active
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {user?.role === 'Admin' && filteredPayrollEmps.some(e => payoutStatuses[e.emp_id] !== 'Paid') && (
+                  <button
+                    onClick={handleInitiateBulkPayout}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded text-[11px] inline-flex items-center gap-1 shadow-sm cursor-pointer transition-all"
+                  >
+                    <DollarSign className="h-3.5 w-3.5" /> Pay All via Razorpay
+                  </button>
+                )}
+                {user?.role === 'Admin' && (
+                  <span className="text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-450 px-2 py-0.5 font-bold rounded">
+                    Digital Signature Active
+                  </span>
+                )}
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/40 text-[10px] font-bold text-slate-400 uppercase border-b dark:border-slate-800">
-                    <th className="p-4">Employee</th>
+                    <th className="p-4">Employee & Bank Account</th>
                     <th className="p-4">Base Salary</th>
                     <th className="p-4">Bonus (₹)</th>
                     <th className="p-4">Deduction (₹)</th>
-                    <th className="p-4">Estimated TDS Tax (10.5%)</th>
-                    <th className="p-4">Net Salary Payable</th>
-                    <th className="p-4 text-right">Payslip</th>
+                    <th className="p-4">Net Payable</th>
+                    <th className="p-4">Razorpay Payout</th>
+                    <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-850 text-xs">
@@ -979,43 +1344,88 @@ function HRPageContent() {
                     const empDeduct = deduction[emp.emp_id] || 0;
                     const tax = Math.round(emp.salary * 0.105);
                     const netPay = emp.salary + empBonus - empDeduct - tax;
+                    const status = payoutStatuses[emp.emp_id] || 'Unpaid';
+                    const txId = payoutTxIds[emp.emp_id] || '';
 
                     return (
-                      <tr key={emp.emp_id}>
+                      <tr key={emp.emp_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10">
                         <td className="p-4">
                           <span className="block font-semibold text-slate-800 dark:text-slate-200">{emp.name}</span>
                           <span className="block text-[10px] text-slate-400 font-mono">{emp.emp_id} ({emp.department})</span>
+                          {emp.bankName ? (
+                            <span className="block text-[10px] text-indigo-600 dark:text-indigo-400 font-mono mt-0.5">
+                              🏦 {emp.bankName} (• {emp.bankAccount ? emp.bankAccount.slice(-4) : '****'}) - {emp.bankIfsc}
+                            </span>
+                          ) : (
+                            <span className="block text-[10px] text-amber-500 font-semibold mt-0.5">
+                              ⚠️ No Bank Details Added
+                            </span>
+                          )}
                         </td>
                         <td className="p-4 font-mono font-medium">₹{emp.salary.toLocaleString()}</td>
                         <td className="p-4">
                           <input
                             type="number"
-                            disabled={user?.role === 'Employee'}
+                            disabled={user?.role === 'Employee' || status === 'Paid'}
                             value={bonus[emp.emp_id] || ''}
                             onChange={(e) => handlePayrollValueChange(emp.emp_id, 'bonus', e.target.value)}
-                            className="w-20 px-2 py-1 border dark:border-slate-750 dark:bg-slate-800 rounded text-xs text-right font-mono"
+                            className="w-20 px-2 py-1 border dark:border-slate-750 dark:bg-slate-800 rounded text-xs text-right font-mono disabled:opacity-50"
                             placeholder="0"
                           />
                         </td>
                         <td className="p-4">
                           <input
                             type="number"
-                            disabled={user?.role === 'Employee'}
+                            disabled={user?.role === 'Employee' || status === 'Paid'}
                             value={deduction[emp.emp_id] || ''}
                             onChange={(e) => handlePayrollValueChange(emp.emp_id, 'deduction', e.target.value)}
-                            className="w-20 px-2 py-1 border dark:border-slate-750 dark:bg-slate-800 rounded text-xs text-right font-mono"
+                            className="w-20 px-2 py-1 border dark:border-slate-750 dark:bg-slate-800 rounded text-xs text-right font-mono disabled:opacity-50"
                             placeholder="0"
                           />
                         </td>
-                        <td className="p-4 font-mono text-slate-400">₹{tax.toLocaleString()}</td>
-                        <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">₹{netPay.toLocaleString()}</td>
-                        <td className="p-4 text-right">
-                          <button
-                            onClick={() => setShowPayslipModal({ ...emp, salary: netPay })}
-                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold rounded text-[11px] inline-flex items-center gap-1"
-                          >
-                            <FileText className="h-3 w-3" /> Generate
-                          </button>
+                        <td className="p-4">
+                          <span className="block font-mono font-bold text-slate-900 dark:text-white">₹{netPay.toLocaleString()}</span>
+                          <span className="block text-[9px] text-slate-400 font-mono">Incl. 10.5% TDS: ₹{tax.toLocaleString()}</span>
+                        </td>
+                        <td className="p-4">
+                          {status === 'Paid' ? (
+                            <div className="space-y-0.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-450 border border-emerald-100 dark:border-emerald-900/30">
+                                <Check className="h-3 w-3" /> Paid via Razorpay
+                              </span>
+                              {txId && <span className="block text-[8px] text-slate-400 font-mono truncate max-w-[120px]">{txId}</span>}
+                            </div>
+                          ) : status === 'Processing' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-450 border border-amber-100 dark:border-amber-900/30">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                              </span>
+                              Processing...
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-50 dark:bg-slate-800/40 text-slate-500 border dark:border-slate-850">
+                              Unpaid
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 text-right space-y-1.5">
+                          <div className="flex flex-col sm:flex-row justify-end items-end sm:items-center gap-1.5">
+                            {status === 'Unpaid' && user?.role === 'Admin' && (
+                              <button
+                                onClick={() => handleInitiatePayout(emp, netPay, empBonus, empDeduct, tax)}
+                                className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded text-[10px] inline-flex items-center gap-1 shadow-sm cursor-pointer transition-all"
+                              >
+                                <DollarSign className="h-2.5 w-2.5" /> Pay via Razorpay
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setShowPayslipModal({ ...emp, salary: netPay })}
+                              className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold rounded text-[10px] inline-flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <FileText className="h-2.5 w-2.5" /> View Slip
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1034,7 +1444,9 @@ function HRPageContent() {
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <form onSubmit={handleAddEmployee} className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-slate-100 dark:border-slate-800">
-            <h3 className="font-bold text-base text-slate-850 dark:text-white">Add New Account (Employee/Manager)</h3>
+            <h3 className="font-bold text-base text-slate-850 dark:text-white font-sans">
+              Add New Account {user?.role === 'Admin' ? '(Employee/Manager/HR)' : '(Employee/Manager)'}
+            </h3>
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block text-slate-500 font-semibold mb-1">Full Name</label>
@@ -1046,6 +1458,9 @@ function HRPageContent() {
                   <select value={selectedRole} onChange={e => setSelectedRole(e.target.value as any)} className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-800 rounded-lg text-slate-900">
                     <option value="Employee">Employee</option>
                     <option value="Manager">Manager</option>
+                    {user?.role === 'Admin' && (
+                      <option value="HR">HR Manager</option>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -1089,6 +1504,32 @@ function HRPageContent() {
                   <label className="block text-slate-500 font-semibold mb-1">Joining Date</label>
                   <input type="date" required value={joiningDate} onChange={e => setJoiningDate(e.target.value)} className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-800 rounded-lg text-slate-900" />
                 </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 border-t dark:border-slate-800 pt-2">
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">Bank Name</label>
+                  <input type="text" value={bankName} onChange={e => setBankName(e.target.value)} className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-800 rounded-lg text-slate-900" placeholder="e.g. HDFC Bank"/>
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">Bank Account</label>
+                  <input type="text" value={bankAccount} onChange={e => setBankAccount(e.target.value)} className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-800 rounded-lg text-slate-900" placeholder="e.g. 5010023..."/>
+                </div>
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">IFSC Code</label>
+                  <input type="text" value={bankIfsc} onChange={e => setBankIfsc(e.target.value)} className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-800 rounded-lg text-slate-900" placeholder="e.g. HDFC0000104"/>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="sendEmailInvite"
+                  checked={sendEmailInvite}
+                  onChange={e => setSendEmailInvite(e.target.checked)}
+                  className="rounded text-indigo-600 focus:ring-0 h-4 w-4 cursor-pointer"
+                />
+                <label htmlFor="sendEmailInvite" className="text-slate-500 font-semibold cursor-pointer">
+                  Automatically dispatch welcome email with credentials
+                </label>
               </div>
             </div>
             <div className="flex justify-end gap-2 text-xs font-semibold pt-2">
@@ -1214,6 +1655,300 @@ function HRPageContent() {
               >
                 <FileDown className="h-4 w-4" /> Print PDF Slip
               </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 3. Created Employee Credentials Popup Modal */}
+      {createdCredentials && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 border border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-200">
+            <div className="flex items-center gap-2 pb-2 border-b dark:border-slate-800">
+              <div className="p-2 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                <Check className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-850 dark:text-white">Roster Account Ready</h3>
+                <p className="text-[10px] text-slate-400">Employee profile successfully added to database.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-850/40 rounded-xl space-y-2 border dark:border-slate-800">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Employee Name:</span>
+                  <span className="font-semibold text-slate-800 dark:text-white">{createdCredentials.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Login Email:</span>
+                  <span className="font-mono text-slate-800 dark:text-white font-medium">{createdCredentials.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Personal Email:</span>
+                  <span className="font-mono text-slate-800 dark:text-white font-medium">{createdCredentials.personalEmail}</span>
+                </div>
+                <div className="flex justify-between border-t dark:border-slate-800 pt-2 mt-1">
+                  <span className="text-slate-400">Temporary Password:</span>
+                  <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{createdCredentials.password}</span>
+                </div>
+                {createdCredentials.senderName && (
+                  <div className="flex justify-between border-t dark:border-slate-800 pt-2 mt-1">
+                    <span className="text-slate-400">Sender Identity:</span>
+                    <span className="font-semibold text-slate-800 dark:text-white">
+                      {createdCredentials.senderName} ({createdCredentials.senderRole})
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {createdCredentials.method === 'emailjs' ? (
+                createdCredentials.emailjsSuccess ? (
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-955/20 border border-emerald-250 rounded-xl text-[10px] text-emerald-600 dark:text-emerald-450 flex items-start gap-1.5">
+                    <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span><b>Automated Delivery Active:</b> The welcome credentials email was successfully dispatched to the employee's personal address via EmailJS integration.</span>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-rose-50 dark:bg-rose-955/20 border border-rose-100 dark:border-rose-900/30 rounded-xl text-[10px] text-rose-600 dark:text-rose-450 flex items-start gap-1.5">
+                    <ShieldAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span><b>EmailJS Dispatch Failure:</b> Check your Service ID/Template ID/Public Key configurations. You must deliver credentials manually.</span>
+                  </div>
+                )
+              ) : (
+                <div className="p-3 bg-blue-50/50 dark:bg-blue-955/10 border border-blue-150 dark:border-blue-900/30 rounded-xl text-[10px] text-slate-500 dark:text-slate-400 flex items-start gap-1.5">
+                  <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>Use the button below to launch a pre-configured Gmail template and send the details from your Gmail account.</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-end gap-2 text-xs font-semibold pt-2 border-t dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  const text = `Hello ${createdCredentials.name},\n\nYour employee account has been created.\nWork Email: ${createdCredentials.email}\nTemporary Password: ${createdCredentials.password}\n\nLink: ${window.location.origin}/login`;
+                  navigator.clipboard.writeText(text);
+                  alert('Credentials copied to clipboard!');
+                }}
+                className="px-4 py-2 border dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-lg text-slate-600 dark:text-slate-350 cursor-pointer"
+              >
+                Copy to Clipboard
+              </button>
+
+              {(!createdCredentials.emailjsSuccess) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const subject = encodeURIComponent(`Your Employee Login Credentials - ${localStorage.getItem('erp_comp_name') || 'Amdox Technologies, Inc.'}`);
+                    const bodyText = `Hello ${createdCredentials.name},
+
+Welcome to our team! Your official employee account has been created.
+
+Here are your login credentials to access the portal:
+Company Name: ${localStorage.getItem('erp_comp_name') || 'Amdox Technologies, Inc.'}
+Portal URL: ${window.location.origin}/login
+Work Email (Username): ${createdCredentials.email}
+Initial Password: ${createdCredentials.password}
+
+Please log in and update your password in Settings.
+
+Best regards,
+${createdCredentials.senderName || 'HR Team'} (${createdCredentials.senderEmail || 'hr@amdox.com'})
+${createdCredentials.senderRole || 'HR'} - HR & Payroll Administration`;
+                    const body = encodeURIComponent(bodyText);
+                    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(createdCredentials.personalEmail)}&su=${subject}&body=${body}`;
+                    window.open(gmailUrl, '_blank');
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  Open in Gmail
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setCreatedCredentials(null)}
+                className="px-4 py-2 bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 hover:bg-slate-750 rounded-lg cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Razorpay Payouts Simulation Checkout Modal */}
+      {razorpayCheckout && (
+        <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[#0B0F19] text-slate-100 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-800 flex flex-col font-sans">
+            
+            {/* Razorpay Brand Header */}
+            <div className="p-5 bg-[#0F172A] border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-7 w-7 rounded bg-blue-600 flex items-center justify-center text-white font-black text-sm italic tracking-tighter">
+                  R
+                </div>
+                <div>
+                  <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400">Razorpay Payouts</h3>
+                  <span className="text-[10px] text-blue-500 font-semibold block">Instant Disbursal Terminal</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">Total Disbursing</span>
+                <span className="text-lg font-mono font-black text-blue-400">₹{razorpayCheckout.totalAmount.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Payout Body */}
+            <div className="p-5 flex-1 max-h-[350px] overflow-y-auto space-y-4 text-xs">
+              
+              {razorpayCheckout.status === 'idle' && (
+                <>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pb-2 border-b border-slate-800">
+                    <span>Beneficiary Details ({razorpayCheckout.items.length} Contacts)</span>
+                    <span>Transfer Value</span>
+                  </div>
+
+                  <div className="divide-y divide-slate-850 max-h-[220px] overflow-y-auto pr-1">
+                    {razorpayCheckout.items.map((item) => (
+                      <div key={item.emp_id} className="py-2.5 flex justify-between items-center">
+                        <div className="space-y-0.5">
+                          <span className="block font-bold text-slate-200">{item.name}</span>
+                          <span className="block text-[10px] text-slate-500 font-mono">
+                            {item.bankName} • Account: ******{item.bankAccount.slice(-4)} • IFSC: {item.bankIfsc}
+                          </span>
+                        </div>
+                        <span className="font-mono font-bold text-slate-300">₹{item.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Funding Source Account */}
+                  <div className="bg-[#111827] p-3.5 rounded-xl border border-slate-800 space-y-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Funding Source Account</span>
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-0.5">
+                        <span className="block font-bold text-slate-200">{companyBankName}</span>
+                        <span className="block text-[10px] text-slate-500 font-mono">
+                          A/C: ******{companyBankAccount.slice(-4)} • IFSC: {companyBankIfsc}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[9px] text-slate-500 block uppercase font-semibold">Available Balance</span>
+                        <span className={`font-mono font-bold text-xs ${companyBankBalance >= razorpayCheckout.totalAmount ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          ₹{companyBankBalance.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#111827] p-3 rounded-lg border border-slate-800/80 space-y-2">
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-slate-400">Disbursal Route Mode:</span>
+                      <span className="font-bold text-slate-200">IMPS / NEFT Instant Transfer</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-slate-400">Compliance Settlement:</span>
+                      <span className="font-bold text-emerald-500">Auto-TDS Logged (10.5%)</span>
+                    </div>
+                  </div>
+
+                  {companyBankBalance < razorpayCheckout.totalAmount && (
+                    <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-[10px] text-rose-400 flex items-start gap-2">
+                      <ShieldAlert className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+                      <span>
+                        <b>Insufficient Funds:</b> The total payout amount of ₹{razorpayCheckout.totalAmount.toLocaleString()} exceeds your available corporate balance of ₹{companyBankBalance.toLocaleString()}. Please add funds in the Settings portal.
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {razorpayCheckout.status !== 'idle' && razorpayCheckout.status !== 'success' && (
+                <div className="py-12 flex flex-col items-center justify-center gap-4 text-center">
+                  <div className="relative flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-14 w-14 border-b-2 border-blue-500"></div>
+                    <DollarSign className="absolute h-6 w-6 text-blue-500 animate-pulse" />
+                  </div>
+                  <div className="space-y-1 mt-2">
+                    <h4 className="font-bold text-slate-200 text-sm">
+                      {razorpayCheckout.status === 'securing' && 'Securing Disbursal Channel...'}
+                      {razorpayCheckout.status === 'validating' && 'Validating Bank Account Nodes...'}
+                      {razorpayCheckout.status === 'transferring' && 'Initiating IMPS/NEFT Payout Reroutes...'}
+                    </h4>
+                    <p className="text-[10px] text-slate-500 font-mono">
+                      {razorpayCheckout.status === 'securing' && 'Handshaking SSL certificates with Razorpay node...'}
+                      {razorpayCheckout.status === 'validating' && 'Verifying routing codes and clearing codes...'}
+                      {razorpayCheckout.status === 'transferring' && 'Broadcasting transaction instructions to bank hosts...'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {razorpayCheckout.status === 'success' && (
+                <div className="py-8 flex flex-col items-center justify-center gap-4 text-center">
+                  <div className="h-14 w-14 rounded-full bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <Check className="h-8 w-8 animate-bounce" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-slate-100 text-sm">Disbursal Successful!</h4>
+                    <p className="text-[10px] text-slate-400">
+                      ₹{razorpayCheckout.totalAmount.toLocaleString()} transferred to {razorpayCheckout.items.length} contacts.
+                    </p>
+                    <span className="block font-mono text-[9px] text-blue-400 bg-blue-950/20 border border-blue-900/30 px-3 py-1 rounded mt-3.5 select-all">
+                      Razorpay Ref: {razorpayCheckout.payoutId}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer buttons */}
+            <div className="p-4 bg-[#0F172A] border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3">
+              <span className="text-[9px] text-slate-500 flex items-center gap-1 font-mono uppercase tracking-wide">
+                🛡️ Secure 256-bit Payout Tunnel
+              </span>
+              
+              <div className="flex gap-2 w-full sm:w-auto justify-end">
+                {razorpayCheckout.status === 'idle' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setRazorpayCheckout(null)}
+                      className="px-4 py-2 border border-slate-800 hover:bg-slate-850 rounded-lg text-slate-400 text-xs font-semibold cursor-pointer w-full sm:w-auto"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={companyBankBalance < razorpayCheckout.totalAmount}
+                      onClick={handleAuthorizePayout}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow-md w-full sm:w-auto ${
+                        companyBankBalance >= razorpayCheckout.totalAmount
+                          ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/35 cursor-pointer'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-750'
+                      }`}
+                    >
+                      Authorize Payout
+                    </button>
+                  </>
+                )}
+                
+                {razorpayCheckout.status === 'success' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRazorpayCheckout(null);
+                      loadData();
+                    }}
+                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold cursor-pointer w-full sm:w-auto"
+                  >
+                    Done & Return
+                  </button>
+                )}
+              </div>
             </div>
 
           </div>

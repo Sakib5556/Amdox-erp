@@ -54,6 +54,15 @@ export default function SettingsPage() {
   const [compPhone, setCompPhone] = useState('+91 20 4444 8888');
   const [compEmail, setCompEmail] = useState('corporate@amdox.com');
   const [compWebsite, setCompWebsite] = useState('www.amdox.com');
+  const [compBankName, setCompBankName] = useState('State Bank of India');
+  const [compBankAccount, setCompBankAccount] = useState('33045612890');
+  const [compBankIfsc, setCompBankIfsc] = useState('SBIN0000301');
+  const [compBankBalance, setCompBankBalance] = useState('500000');
+  
+  // User Personal Bank Details States
+  const [userBankName, setUserBankName] = useState('');
+  const [userBankAccount, setUserBankAccount] = useState('');
+  const [userBankIfsc, setUserBankIfsc] = useState('');
 
   // 4. Security Tab States
   const [currentPassword, setCurrentPassword] = useState('');
@@ -71,6 +80,12 @@ export default function SettingsPage() {
   const [teamsWebhook, setTeamsWebhook] = useState('https://amdoxerp.webhook.office.com/webhookb2/c89a0e...');
   const [apiToken, setApiToken] = useState('erp_live_tok_9a38f821bc0d8e22f8319e7a8bb032');
   const [copiedToken, setCopiedToken] = useState(false);
+
+  // Email Integration States
+  const [emailMethod, setEmailMethod] = useState<'gmail' | 'emailjs'>('gmail');
+  const [emailjsServiceId, setEmailjsServiceId] = useState('');
+  const [emailjsTemplateId, setEmailjsTemplateId] = useState('');
+  const [emailjsPublicKey, setEmailjsPublicKey] = useState('');
 
   // 7. Preferences Tab States
   const [compCurrency, setCompCurrency] = useState('INR');
@@ -189,6 +204,27 @@ export default function SettingsPage() {
       const storedCompWebsite = localStorage.getItem('erp_comp_website');
       if (storedCompWebsite) setCompWebsite(storedCompWebsite);
 
+      const storedCompBankName = localStorage.getItem('company_bank_name');
+      if (storedCompBankName) setCompBankName(storedCompBankName);
+
+      const storedCompBankAccount = localStorage.getItem('company_bank_account');
+      if (storedCompBankAccount) setCompBankAccount(storedCompBankAccount);
+
+      const storedCompBankIfsc = localStorage.getItem('company_bank_ifsc');
+      if (storedCompBankIfsc) setCompBankIfsc(storedCompBankIfsc);
+
+      const storedCompBankBalance = localStorage.getItem('company_bank_balance');
+      if (storedCompBankBalance) setCompBankBalance(storedCompBankBalance);
+
+      const storedUserBankName = localStorage.getItem(`erp_bank_name_${user.id}`);
+      setUserBankName(storedUserBankName || empDetails?.bankName || '');
+
+      const storedUserBankAccount = localStorage.getItem(`erp_bank_account_${user.id}`);
+      setUserBankAccount(storedUserBankAccount || empDetails?.bankAccount || '');
+
+      const storedUserBankIfsc = localStorage.getItem(`erp_bank_ifsc_${user.id}`);
+      setUserBankIfsc(storedUserBankIfsc || empDetails?.bankIfsc || '');
+
       const storedCompCurrency = localStorage.getItem('erp_currency');
       if (storedCompCurrency) setCompCurrency(storedCompCurrency);
 
@@ -211,6 +247,19 @@ export default function SettingsPage() {
 
       const storedTeams = localStorage.getItem('erp_teams_webhook');
       if (storedTeams) setTeamsWebhook(storedTeams);
+
+      // Email Integrations
+      const storedEmailMethod = localStorage.getItem('company_email_method');
+      if (storedEmailMethod) setEmailMethod(storedEmailMethod as 'gmail' | 'emailjs');
+
+      const storedServiceId = localStorage.getItem('company_emailjs_service_id');
+      if (storedServiceId) setEmailjsServiceId(storedServiceId);
+
+      const storedTemplateId = localStorage.getItem('company_emailjs_template_id');
+      if (storedTemplateId) setEmailjsTemplateId(storedTemplateId);
+
+      const storedPublicKey = localStorage.getItem('company_emailjs_public_key');
+      if (storedPublicKey) setEmailjsPublicKey(storedPublicKey);
 
       // Preferences
       const storedLanding = localStorage.getItem(`erp_landing_page_${user.id}`);
@@ -294,6 +343,9 @@ export default function SettingsPage() {
       localStorage.setItem(`erp_avatar_${user.id}`, avatarUrl);
       localStorage.setItem(`erp_alt_email_${user.id}`, personalEmail);
       localStorage.setItem(`erp_bio_${user.id}`, bio);
+      localStorage.setItem(`erp_bank_name_${user.id}`, userBankName);
+      localStorage.setItem(`erp_bank_account_${user.id}`, userBankAccount);
+      localStorage.setItem(`erp_bank_ifsc_${user.id}`, userBankIfsc);
 
       // Update matching employee record in database
       const employeesList = mockDb.getEmployees();
@@ -306,6 +358,9 @@ export default function SettingsPage() {
         employeesList[index].department = department;
         employeesList[index].personalEmail = personalEmail;
         employeesList[index].aboutMe = bio;
+        employeesList[index].bankName = userBankName;
+        employeesList[index].bankAccount = userBankAccount;
+        employeesList[index].bankIfsc = userBankIfsc;
         mockDb.set('erp_employees', employeesList);
       }
 
@@ -321,6 +376,13 @@ export default function SettingsPage() {
       localStorage.setItem('erp_comp_phone', compPhone);
       localStorage.setItem('erp_comp_email', compEmail);
       localStorage.setItem('erp_comp_website', compWebsite);
+      
+      if (user.role === 'Admin') {
+        localStorage.setItem('company_bank_name', compBankName);
+        localStorage.setItem('company_bank_account', compBankAccount);
+        localStorage.setItem('company_bank_ifsc', compBankIfsc);
+        mockDb.recalculateCompanyBankBalance();
+      }
       setSuccessMsg('Company profile details saved successfully.');
       mockDb.logActivity('Updated company general settings', 'System');
     } else if (activeTab === 'security') {
@@ -365,7 +427,11 @@ export default function SettingsPage() {
     } else if (activeTab === 'integrations') {
       localStorage.setItem('erp_slack_webhook', slackWebhook);
       localStorage.setItem('erp_teams_webhook', teamsWebhook);
-      setSuccessMsg('System webhooks integrations saved.');
+      localStorage.setItem('company_email_method', emailMethod);
+      localStorage.setItem('company_emailjs_service_id', emailjsServiceId);
+      localStorage.setItem('company_emailjs_template_id', emailjsTemplateId);
+      localStorage.setItem('company_emailjs_public_key', emailjsPublicKey);
+      setSuccessMsg('System webhooks and email integrations saved.');
     } else if (activeTab === 'preferences') {
       localStorage.setItem('erp_currency', compCurrency);
       localStorage.setItem('erp_language', compLanguage);
@@ -732,6 +798,43 @@ export default function SettingsPage() {
                         placeholder="Write a brief bio about yourself..."
                       />
                     </div>
+                    
+                    {/* Personal Bank Details Fields */}
+                    <div className="border-t dark:border-slate-800 pt-4 mt-2 md:col-span-2">
+                      <h3 className="font-bold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">My Personal Bank Details</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <label className="block text-slate-500 font-semibold mb-1">Bank Name</label>
+                          <input
+                            type="text"
+                            value={userBankName}
+                            onChange={e => setUserBankName(e.target.value)}
+                            className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-850 rounded-lg text-slate-900 dark:text-slate-200 font-medium"
+                            placeholder="e.g. HDFC Bank"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-slate-500 font-semibold mb-1">Account Number</label>
+                          <input
+                            type="text"
+                            value={userBankAccount}
+                            onChange={e => setUserBankAccount(e.target.value)}
+                            className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-850 rounded-lg text-slate-900 dark:text-slate-200 font-mono font-medium"
+                            placeholder="e.g. 50100432891201"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-slate-500 font-semibold mb-1">IFSC Code</label>
+                          <input
+                            type="text"
+                            value={userBankIfsc}
+                            onChange={e => setUserBankIfsc(e.target.value)}
+                            className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-850 rounded-lg text-slate-900 dark:text-slate-200 font-mono font-medium uppercase"
+                            placeholder="e.g. HDFC0000104"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -905,6 +1008,68 @@ export default function SettingsPage() {
                     className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-850 rounded-lg text-slate-900 dark:text-slate-200"
                   />
                 </div>
+
+                {user.role === 'Admin' && (
+                  <div className="border-t dark:border-slate-800 pt-4 mt-2">
+                    <h3 className="font-bold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">Company Funding Bank Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="block text-slate-500 font-semibold mb-1">Bank Name</label>
+                        <input
+                          type="text"
+                          disabled={user.role !== 'Admin'}
+                          value={compBankName}
+                          onChange={e => setCompBankName(e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-lg text-slate-900 dark:text-slate-200 ${
+                            user.role === 'Admin'
+                              ? 'border-slate-750 dark:bg-slate-850'
+                              : 'border-slate-800 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-slate-400 cursor-not-allowed'
+                          }`}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-slate-500 font-semibold mb-1">Account Number</label>
+                        <input
+                          type="text"
+                          disabled={user.role !== 'Admin'}
+                          value={compBankAccount}
+                          onChange={e => setCompBankAccount(e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-lg text-slate-900 dark:text-slate-200 font-mono ${
+                            user.role === 'Admin'
+                              ? 'border-slate-750 dark:bg-slate-850'
+                              : 'border-slate-800 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-slate-400 cursor-not-allowed'
+                          }`}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-slate-500 font-semibold mb-1">IFSC Code</label>
+                        <input
+                          type="text"
+                          disabled={user.role !== 'Admin'}
+                          value={compBankIfsc}
+                          onChange={e => setCompBankIfsc(e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-lg text-slate-900 dark:text-slate-200 font-mono uppercase ${
+                            user.role === 'Admin'
+                              ? 'border-slate-750 dark:bg-slate-850'
+                              : 'border-slate-800 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-slate-400 cursor-not-allowed'
+                          }`}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-slate-500 font-semibold mb-1">Available Funding Balance (₹)</label>
+                        <input
+                          type="text"
+                          disabled={true}
+                          value={parseFloat(compBankBalance).toLocaleString()}
+                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-500 font-mono rounded-lg cursor-not-allowed"
+                        />
+                        <p className="text-[10px] text-slate-450 dark:text-slate-500 italic mt-1">
+                          Note: Recalculated dynamically in real-time based on all company revenues and expenses.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1212,6 +1377,95 @@ export default function SettingsPage() {
                   className="w-full px-3 py-2 border dark:border-slate-750 dark:bg-slate-855 rounded-lg text-slate-900 dark:text-slate-200 font-mono text-[11px]"
                 />
                 <span className="text-[10px] text-slate-400 block">Post workflow notices to Microsoft Teams channels using inbound connectors.</span>
+              </div>
+
+              {/* Email Gateway Configuration */}
+              <div className="space-y-4 p-4 bg-slate-50 dark:bg-slate-800/40 border dark:border-slate-800 rounded-xl">
+                <div>
+                  <h4 className="font-bold text-slate-800 dark:text-white text-xs">Credentials Delivery Gateway</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Configure how welcome emails with login credentials are dispatched to new employees.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-slate-850 dark:text-slate-200 font-bold text-[11px]">Preferred Dispatch Method</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEmailMethod('gmail')}
+                      className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-all text-center cursor-pointer ${
+                        emailMethod === 'gmail'
+                          ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-450'
+                          : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-750 text-slate-650 dark:text-slate-400'
+                      }`}
+                    >
+                      Gmail Web Compose (Manual Deep Link)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEmailMethod('emailjs')}
+                      className={`px-3 py-2 text-xs font-semibold rounded-lg border transition-all text-center cursor-pointer ${
+                        emailMethod === 'emailjs'
+                          ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-950/20 dark:border-blue-900 dark:text-blue-450'
+                          : 'bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-750 text-slate-650 dark:text-slate-400'
+                      }`}
+                    >
+                      EmailJS Gateway (Background Auto-Send)
+                    </button>
+                  </div>
+                </div>
+
+                {emailMethod === 'gmail' && (
+                  <div className="p-3 bg-blue-50/50 dark:bg-blue-950/10 border border-blue-100/50 dark:border-blue-950/30 rounded-lg text-[10px] text-slate-500 dark:text-slate-400">
+                    💡 <b>Gmail Manual Routing:</b> No credentials required. When you add a new employee, a secure popup will display their generated details with a button to launch Gmail with a pre-filled invitation template.
+                  </div>
+                )}
+
+                {emailMethod === 'emailjs' && (
+                  <div className="space-y-3 pt-2 border-t dark:border-slate-800">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500 font-bold">EmailJS Service ID</label>
+                        <input
+                          type="text"
+                          value={emailjsServiceId}
+                          onChange={e => setEmailjsServiceId(e.target.value)}
+                          placeholder="e.g. service_abcd123"
+                          className="w-full px-3 py-1.5 border dark:border-slate-750 dark:bg-slate-850 rounded-lg text-slate-900 dark:text-slate-200 font-mono text-[11px]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500 font-bold">EmailJS Template ID</label>
+                        <input
+                          type="text"
+                          value={emailjsTemplateId}
+                          onChange={e => setEmailjsTemplateId(e.target.value)}
+                          placeholder="e.g. template_xyz987"
+                          className="w-full px-3 py-1.5 border dark:border-slate-750 dark:bg-slate-850 rounded-lg text-slate-900 dark:text-slate-200 font-mono text-[11px]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] text-slate-500 font-bold">EmailJS Public Key</label>
+                        <input
+                          type="text"
+                          value={emailjsPublicKey}
+                          onChange={e => setEmailjsPublicKey(e.target.value)}
+                          placeholder="e.g. user_Ghk... or pk_..."
+                          className="w-full px-3 py-1.5 border dark:border-slate-750 dark:bg-slate-850 rounded-lg text-slate-900 dark:text-slate-200 font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+                    <div className="p-3 bg-amber-50/50 dark:bg-amber-950/10 border border-amber-100/50 dark:border-amber-955/30 rounded-lg text-[10px] text-slate-500 dark:text-slate-400 space-y-1">
+                      <p>⚠️ <b>Template Parameter Requirements:</b> Your EmailJS template should contain these exact placeholder keys:</p>
+                      <ul className="list-disc pl-4 font-mono text-[9px] text-slate-650 dark:text-slate-400">
+                        <li>{"{{to_email}}"} - Personal email of the employee</li>
+                        <li>{"{{employee_name}}"} - Name of the employee</li>
+                        <li>{"{{work_email}}"} - Corporate login email</li>
+                        <li>{"{{password}}"} - Initial temporary login password</li>
+                        <li>{"{{company_name}}"} - Company name</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* REST API tokens */}
